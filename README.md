@@ -1,4 +1,4 @@
 # expo-sqlite-migrate
-A simple lightweight migrations library for React Native and Expo apps.
+A simple lightweight React Native and Expo migrations library for local sqlite databases. 
 
-#WIP
+# WIP

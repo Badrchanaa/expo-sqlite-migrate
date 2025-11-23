@@ -1,0 +1,25 @@
+{
+  "name": "expo-sqlite-migrate",
+  "version": "0.0.1",
+  "description": "lightweight React Native and Expo migrations library",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Badrchanaa/expo-sqlite-migrate.git"
+  },
+  "keywords": [
+    "sqlite",
+    "react-native",
+    "expo",
+    "migration"
+  ],
+  "author": "Badr Chanaa",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Badrchanaa/expo-sqlite-migrate/issues"
+  },
+  "homepage": "https://github.com/Badrchanaa/expo-sqlite-migrate#readme"
+}
