@@ -1,4 +1,5 @@
-import { Constraint, Field, Table } from "./migrations";
+import { Constraint, Table } from "./migrations";
+import type { Field } from "./migrations";
 
 export class QueryGenerator {
   private static getFieldConstraints(field: Field) {
@@ -27,15 +28,20 @@ export class QueryGenerator {
         throw new Error("invalid varchar length in field " + field.name);
       fieldType = field.type;
     } else {
-      fieldType = field.type;
+      fieldType = field.type.toUpperCase();
     }
-    return `${field.name} ${fieldType} ${this.getFieldConstraints(field)},\n`;
+    return `${field.name} ${fieldType} ${this.getFieldConstraints(field)}`;
   }
 
   public static createTable(table: Table) {
+    const fieldsQuery = table.fields
+      .map((field) => {
+        return this.generateFieldQuery(field);
+      })
+      .join(",\n");
     const query = `CREATE TABLE IF NOT EXISTS ${table.name}(
-${table.fields}
-)`;
+${fieldsQuery}
+);`;
     return query;
   }
 

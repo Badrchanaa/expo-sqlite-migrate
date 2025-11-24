@@ -1,3 +1,5 @@
+import { QueryGenerator } from "./query-generator";
+
 type FieldType = "int" | `varchar(${number})` | "text" | "float";
 
 export const enum Constraint {
@@ -31,48 +33,34 @@ export class Table {
     this.fieldNames.add(name);
     return this;
   }
-  get fields() {
+  get fields(): Field[] {
     return this._fields;
   }
-  create() {}
-  update() {}
-  drop() {}
+  create(): string {
+    return QueryGenerator.createTable(this);
+  }
+  update(): string {
+    return "";
+  }
+  drop(): string {
+    return "";
+  }
 }
 
-class Migration {
-  public id: string;
-  private onUpCb?: CallableFunction;
-  private onDownCb?: CallableFunction;
-  constructor(id: string) {
-    this.id = id;
-  }
-  up(cb: () => void) {
-    this.onUpCb = cb;
-    return this;
-  }
-  down(cb: () => void) {
-    this.onDownCb = cb;
-    return this;
-  }
-  get onUp() {
-    return this.onUpCb;
-  }
+export interface Migration {
+  id: string;
+  up: () => string;
+  down: () => string;
 }
 
 class MigrationManager {
-  private migrations: Set<Migration>;
-  constructor() {
-    this.migrations = new Set();
+  private migrations: Map<string, Migration>;
+  constructor(migrations: Migration[]) {
+    this.migrations = new Map();
+    migrations.forEach((migration) => {
+      if (this.migrations.has(migration.id))
+        throw new Error("migrations cannot have same ID");
+      this.migrations.set(migration.id, migration);
+    });
   }
 }
-
-const migration = new Migration("product-table")
-  .up(() => {
-    return new Table("products")
-      .addField("id", "int", Constraint.PRIMARY_KEY | Constraint.UNIQUE | 23)
-      .addField("name", "text")
-      .create();
-  })
-  .down(() => {
-    new Table("products").drop();
-  });
