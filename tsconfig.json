@@ -2,12 +2,15 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+		// "include": ["src"],
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+		"moduleResolution": "bundler",
+    "module": "esnext",
     "target": "esnext",
     "types": [],
     // For nodejs:
@@ -34,6 +37,7 @@
 
     // Recommended Options
     "strict": true,
+		"esModuleInterop": true,
     "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,

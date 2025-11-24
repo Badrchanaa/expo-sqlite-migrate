@@ -3,8 +3,13 @@
   "version": "0.0.1",
   "description": "lightweight React Native and Expo migrations library",
   "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsdown src/index.ts --format cjs,esm --dts --clean --platform neutral --external react,react-native"
   },
   "repository": {
     "type": "git",
@@ -21,5 +26,13 @@
   "bugs": {
     "url": "https://github.com/Badrchanaa/expo-sqlite-migrate/issues"
   },
-  "homepage": "https://github.com/Badrchanaa/expo-sqlite-migrate#readme"
+  "homepage": "https://github.com/Badrchanaa/expo-sqlite-migrate#readme",
+  "devDependencies": {
+    "expo-sqlite": "^16.0.9",
+    "tsdown": "^0.16.6",
+    "tsx": "^4.20.6"
+  },
+	"peerDependencies": {
+    "expo-sqlite": "^16.0.9"
+	}
 }
