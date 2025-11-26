@@ -52,15 +52,3 @@ export interface Migration {
   up: () => string;
   down: () => string;
 }
-
-class MigrationManager {
-  private migrations: Map<string, Migration>;
-  constructor(migrations: Migration[]) {
-    this.migrations = new Map();
-    migrations.forEach((migration) => {
-      if (this.migrations.has(migration.id))
-        throw new Error("migrations cannot have same ID");
-      this.migrations.set(migration.id, migration);
-    });
-  }
-}
