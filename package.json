@@ -8,7 +8,7 @@
   ],
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "build": "tsdown src/index.ts --format cjs,esm --dts --clean --platform neutral --external react,react-native"
   },
   "repository": {
@@ -29,10 +29,12 @@
   "homepage": "https://github.com/Badrchanaa/expo-sqlite-migrate#readme",
   "devDependencies": {
     "expo-sqlite": "^16.0.9",
+    "sqlite3": "^5.1.7",
     "tsdown": "^0.16.6",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "vitest": "^4.0.14"
   },
-	"peerDependencies": {
+  "peerDependencies": {
     "expo-sqlite": "^16.0.9"
-	}
+  }
 }

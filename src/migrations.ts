@@ -1,6 +1,6 @@
 import { QueryGenerator } from "./query-generator";
 
-type FieldType = "int" | `varchar(${number})` | "text" | "float";
+export type FieldType = "int" | `varchar(${number})` | "text" | "float";
 
 export const enum Constraint {
   NONE = 0,
@@ -33,15 +33,19 @@ export class Table {
     this.fieldNames.add(name);
     return this;
   }
+
   get fields(): Field[] {
     return this._fields;
   }
+
   create(): string {
     return QueryGenerator.createTable(this);
   }
+
   update(): string {
     return "";
   }
+
   drop(): string {
     return "";
   }

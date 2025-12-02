@@ -1,5 +1,8 @@
 import type { Migration } from "./migrations";
-import { Adapter } from "./adapter";
+import { InvalidMigrationError } from "./error";
+import type { DBAdapter } from "./adapters/BaseAdapter";
+import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
+import { ExpoAdapter } from "./adapters/ExpoAdapter";
 
 const enum MigrationStatus {
   REGISTERED = 0,
@@ -12,18 +15,21 @@ type MigrationRecord = {
   status: MigrationStatus;
 };
 
-import { SQLiteDatabase } from "expo-sqlite";
+type DBTypeLiteral = "expo-sqlite" | "sqlite3";
 
 export class Migrator {
-  private _db: Adapter;
-  constructor(db: SQLiteDatabase) {
-    this._db = new Adapter(db);
+  private _db: DBAdapter;
+  constructor(db: any, type: DBTypeLiteral) {
+    if (type == "sqlite3") this._db = new Sqlite3Adapter(db);
+    else if (type == "expo-sqlite") this._db = new ExpoAdapter(db);
+    else throw new Error("invalid database type literal");
+
     this.initMigrationTable();
   }
 
   // creates the migrations table if it does not exist
   async initMigrationTable() {
-    await this._db.exec(`
+    await this._db.run(`
 CREATE TABLE IF NOT EXISTS migrations(
 	id TEXT NOT NULL UNIQUE,
 	status INTEGER DEFAULT 0,
@@ -32,7 +38,7 @@ CREATE TABLE IF NOT EXISTS migrations(
 `);
   }
 
-  async checkMigration(migrationId: string) {
+  async getMigrationRecord(migrationId: string) {
     const migration = await this._db.getFirst<MigrationRecord>(
       `SELECT id, status FROM migrations WHERE id = ?`,
       migrationId,
@@ -52,7 +58,7 @@ CREATE TABLE IF NOT EXISTS migrations(
     migrationRecord: MigrationRecord | null,
   ): Promise<boolean> {
     if (!migrationRecord)
-      await this._db.exec(
+      await this._db.run(
         `INSERT INTO migrations (id, status) values (${migration.id}, ${MigrationStatus.REGISTERED});`,
       );
     else {
@@ -64,46 +70,51 @@ CREATE TABLE IF NOT EXISTS migrations(
     }
     try {
       const query = migration.up();
-      this._db.exec(query);
-      this._db.exec(
+      this._db.run(query);
+      this._db.run(
         `UPDATE migrations (status) values (${MigrationStatus.APPLIED}) WHERE id = ${migration.id}`,
       );
       return true;
     } catch (e) {
       if (e instanceof Error)
         console.log("migration failed with error:", e.message);
-      this._db.exec(
+      this._db.run(
         `UPDATE migrations (status) values (${MigrationStatus.FAILED}) WHERE id = ${migration.id}`,
       );
       return false;
     }
   }
 
-  async migrate(migrations: Migration[]) {
-    // check for migrations with the same id
-    migrations.forEach((migration) => {
-      const processedMigrations = new Set();
+  validateMigrations(migrations: Migration[]) {
+    const processedMigrations = new Set();
+    for (const migration of migrations) {
       if (processedMigrations.has(migration.id))
-        throw new Error("migrations cannot have same ID");
+        throw new InvalidMigrationError("migrations cannot have same ID");
       processedMigrations.add(migration.id);
-    });
+    }
+  }
+
+  async migrate(migrations: Migration[]) {
     const migrated: string[] = [];
 
-    for (const migration of migrations) {
-      try {
-        const migrationRecord = await this.checkMigration(migration.id);
-        if (!this.applyMigration(migration, migrationRecord)) {
+    try {
+      this.validateMigrations(migrations);
+      for (const migration of migrations) {
+        const migrationRecord = await this.getMigrationRecord(migration.id);
+        if (!(await this.applyMigration(migration, migrationRecord))) {
           console.error(`migration ${migration.id} failed. Abort`);
           break;
         }
         console.log("migration successfull");
         migrated.push(migration.id);
-      } catch (e) {
-        if (e instanceof Error)
-          console.error("unexpected migration error:", e.message);
-        break;
       }
+    } catch (e) {
+      if (e instanceof InvalidMigrationError)
+        console.error("Invalid migration:", e.message);
+      if (e instanceof Error)
+        console.error("unexpected migration error:", e.message);
     }
+
     return migrated;
   }
 }
