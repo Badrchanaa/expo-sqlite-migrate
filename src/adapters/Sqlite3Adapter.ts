@@ -22,6 +22,7 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
   }
 
   async getAll<T>(source: string, ...params: any[]): Promise<T[]> {
+    console.log("[SQLite3Adapter] get query:", source, params);
     const get = promisify<T[]>(this.db.all, this.db);
     return get(source, ...params);
   }

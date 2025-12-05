@@ -57,4 +57,24 @@ describe("sqlite3 adapter tests", () => {
     );
     expect(res).toHaveProperty("id", "test-table");
   });
+  it("table with many primary keys", async () => {
+    const migrationID = "TEST-PRIMARY-KEY";
+    await expect(
+      migrator.migrate([
+        {
+          id: migrationID,
+          up: () =>
+            new Table("test_table")
+              .addField("test_column", "text", Constraint.PRIMARY_KEY)
+              .addField("test_column2", "text", Constraint.PRIMARY_KEY)
+              .create(),
+          down: () => "",
+        },
+      ]),
+    ).resolves.toEqual([]);
+    const res = await dbGet(
+      `SELECT * FROM migrations WHERE id='${migrationID}' and status=${MigrationStatus.FAILED};`,
+    );
+    expect(res).toHaveProperty("id", migrationID);
+  });
 });

@@ -20,6 +20,7 @@ export class Table {
   private fieldNames: Set<string>;
   private _fields: Field[];
   public name: string;
+  private hasPk: boolean = false;
 
   private validateTableName(name: string) {
     if (name.length === 0) throw new Error("Invalid empty table name");
@@ -54,7 +55,11 @@ export class Table {
 
   addField(name: string, type: FieldType, constraints: Constraint = 0) {
     if (this.fieldNames.has(name))
-      throw new Error(`table already has field ${name}`);
+      throw new Error(`table fields can not have the same name ${name}`);
+    const isPk = constraints & Constraint.PRIMARY_KEY;
+    if (isPk && this.hasPk)
+      throw new Error(`table can not have more than one primary key`);
+    if (isPk) this.hasPk = true;
     this._fields.push({ name, type, constraints });
     this.fieldNames.add(name);
     return this;

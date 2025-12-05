@@ -1,3 +1,5 @@
+// TODO: improve this garbage
+
 export function promisify<T>(
   fn: (...args: any[]) => any,
   context: any,
