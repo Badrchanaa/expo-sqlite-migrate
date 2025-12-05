@@ -1,21 +1,21 @@
 import { Database } from "sqlite3";
 import { describe, expect, it } from "vitest";
-import { Migrator } from "../src/migrator";
+import { MigrationStatus, Migrator } from "../src/migrator";
 import { promisify } from "../src/utils/promisify";
 import { Table } from "../src";
 import { Constraint } from "../src/migrations";
 
-describe("sqlite3 adapter", () => {
+describe("sqlite3 adapter tests", () => {
   const db = new Database(":memory:");
   const migrator = new Migrator(db, "sqlite3");
   const dbGet = promisify<any>(db.get, db);
   const dbAll = promisify<any>(db.all, db);
-  it("creates migrations table using sqlite3", async () => {
+  it("creates migrations table", async () => {
     const res = await dbGet(
       "SELECT * FROM sqlite_master WHERE type='table' AND name='migrations'",
     );
-    expect(res).not.toBeNull();
-    console.log(res);
+    expect(res).toHaveProperty("type", "table");
+    expect(res).toHaveProperty("name", "migrations");
   });
   it("should have the correct columns", async () => {
     const columns: { name: string }[] = await dbAll(
@@ -33,7 +33,11 @@ describe("sqlite3 adapter", () => {
           down: () => "",
         },
       ]),
-    ).resolves.toEqual([]); // test fails if migrate throws
+    ).resolves.toEqual([]);
+    const res = await dbGet(
+      `SELECT * FROM migrations WHERE id='test-table' AND status=${MigrationStatus.FAILED}`,
+    );
+    expect(res).toHaveProperty("id", "test-table");
   });
   it("migrates a previously invalid migration", async () => {
     await expect(
@@ -47,6 +51,10 @@ describe("sqlite3 adapter", () => {
           down: () => "",
         },
       ]),
-    ).resolves.toEqual(["test-table"]); // test fails if migrate throws
+    ).resolves.toEqual(["test-table"]);
+    const res = await dbGet(
+      `SELECT * FROM migrations WHERE id='test-table' AND status=${MigrationStatus.APPLIED}`,
+    );
+    expect(res).toHaveProperty("id", "test-table");
   });
 });

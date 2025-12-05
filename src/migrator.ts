@@ -4,7 +4,7 @@ import type { DBAdapter } from "./adapters/BaseAdapter";
 import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
 import { ExpoAdapter } from "./adapters/ExpoAdapter";
 
-const enum MigrationStatus {
+export const enum MigrationStatus {
   REGISTERED = 0,
   APPLIED = 1,
   FAILED = 2,
