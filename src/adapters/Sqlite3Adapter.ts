@@ -8,7 +8,17 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
   }
 
   async run(query: string) {
-    this.db.run(query);
+    console.log("[SQLite3Adapter] run query:", query);
+    return new Promise<void>((resolve, reject) => {
+      try {
+        this.db.run(query, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 
   async getAll<T>(source: string, ...params: any[]): Promise<T[]> {

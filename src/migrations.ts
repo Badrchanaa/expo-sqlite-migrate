@@ -21,11 +21,37 @@ export class Table {
   private _fields: Field[];
   public name: string;
 
+  private validateTableName(name: string) {
+    if (name.length === 0) throw new Error("Invalid empty table name");
+    // Regex to detect fully quoted names: "name", `name`, [name]
+    const quotedMatch = name.match(/^["`\[](.+)["`\]]$/);
+
+    if (quotedMatch) {
+      // check that inner content does not contain the quote type
+      const inner = quotedMatch[1]!;
+      if (inner.includes(name[0] === "[" ? "]" : name[0]!)) {
+        throw new Error(
+          "Invalid table name: inner content contains quote character",
+        );
+      }
+      return; // valid fully quoted name
+    }
+
+    // unquoted names: must start with letter or underscore, followed by letters/digits/underscores
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      throw new Error(
+        "Invalid table name: unquoted table name can only contain alphanumeric and underscore characters",
+      );
+    }
+  }
+
   constructor(tableName: string) {
+    this.validateTableName(tableName);
     this.name = tableName;
     this.fieldNames = new Set();
     this._fields = new Array();
   }
+
   addField(name: string, type: FieldType, constraints: Constraint = 0) {
     if (this.fieldNames.has(name))
       throw new Error(`table already has field ${name}`);

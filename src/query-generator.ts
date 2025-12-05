@@ -19,6 +19,9 @@ export class QueryGenerator {
   }
 
   public static createTable(table: Table) {
+    if (table.fields.length === 0)
+      throw new Error("can not create a table with no fields");
+
     const fieldsQuery = table.fields
       .map((field) => {
         return this.generateFieldQuery(field);

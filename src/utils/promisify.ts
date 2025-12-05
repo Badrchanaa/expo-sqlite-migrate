@@ -4,10 +4,14 @@ export function promisify<T>(
 ): (...args: any[]) => Promise<T> {
   return (...args: any[]) => {
     return new Promise((resolve, reject) => {
-      fn.call(context, ...args, (err: any, result: T) => {
-        if (err) reject(err);
-        else resolve(result);
-      });
+      try {
+        fn.call(context, ...args, (err: any, result: T) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      } catch (e) {
+        reject(e);
+      }
     });
   };
 }

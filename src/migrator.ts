@@ -57,9 +57,10 @@ CREATE TABLE IF NOT EXISTS migrations(
     migration: Migration,
     migrationRecord: MigrationRecord | null,
   ): Promise<boolean> {
+    console.log("start:");
     if (!migrationRecord)
       await this._db.run(
-        `INSERT INTO migrations (id, status) values (${migration.id}, ${MigrationStatus.REGISTERED});`,
+        `INSERT INTO migrations (id, status) values ("${migration.id}", ${MigrationStatus.REGISTERED});`,
       );
     else {
       if (migrationRecord.status === MigrationStatus.APPLIED) return true;
@@ -68,18 +69,19 @@ CREATE TABLE IF NOT EXISTS migrations(
       if (migrationRecord.status === MigrationStatus.REGISTERED)
         console.warn("migration already registered " + migrationRecord.id);
     }
+    console.log("end:");
     try {
       const query = migration.up();
-      this._db.run(query);
-      this._db.run(
-        `UPDATE migrations (status) values (${MigrationStatus.APPLIED}) WHERE id = ${migration.id}`,
+      await this._db.run(query);
+      await this._db.run(
+        `UPDATE migrations SET status = ${MigrationStatus.APPLIED} WHERE id = "${migration.id}"`,
       );
       return true;
     } catch (e) {
       if (e instanceof Error)
         console.log("migration failed with error:", e.message);
-      this._db.run(
-        `UPDATE migrations (status) values (${MigrationStatus.FAILED}) WHERE id = ${migration.id}`,
+      await this._db.run(
+        `UPDATE migrations SET status = ${MigrationStatus.FAILED} WHERE id = "${migration.id}"`,
       );
       return false;
     }
@@ -102,17 +104,18 @@ CREATE TABLE IF NOT EXISTS migrations(
       for (const migration of migrations) {
         const migrationRecord = await this.getMigrationRecord(migration.id);
         if (!(await this.applyMigration(migration, migrationRecord))) {
-          console.error(`migration ${migration.id} failed. Abort`);
+          //console.error(`migration ${migration.id} failed. Abort`);
           break;
         }
-        console.log("migration successfull");
+        console.log("migration successful");
         migrated.push(migration.id);
       }
     } catch (e) {
-      if (e instanceof InvalidMigrationError)
-        console.error("Invalid migration:", e.message);
-      if (e instanceof Error)
-        console.error("unexpected migration error:", e.message);
+      // if (e instanceof InvalidMigrationError)
+      console.error("Invalid migration:", e);
+      throw e;
+      // if (e instanceof Error)
+      // console.error("unexpected migration error:", e.message);
     }
 
     return migrated;
