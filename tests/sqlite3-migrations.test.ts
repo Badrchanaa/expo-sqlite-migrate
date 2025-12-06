@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { MigrationStatus, Migrator } from "../src/migrator";
 import { promisify } from "../src/utils/promisify";
 import { Table } from "../src";
-import { Constraint } from "../src/migrations";
+import { Constraint, DropTable } from "../src/migrations";
 
 describe("sqlite3 adapter tests", () => {
   const db = new Database(":memory:");
@@ -57,7 +57,7 @@ describe("sqlite3 adapter tests", () => {
     );
     expect(res).toHaveProperty("id", "test-table");
   });
-  it("table with many primary keys", async () => {
+  it("should not create table with more than one primary key", async () => {
     const migrationID = "TEST-PRIMARY-KEY";
     await expect(
       migrator.migrate([
@@ -68,7 +68,7 @@ describe("sqlite3 adapter tests", () => {
               .addField("test_column", "text", Constraint.PRIMARY_KEY)
               .addField("test_column2", "text", Constraint.PRIMARY_KEY)
               .create(),
-          down: () => "",
+          down: () => DropTable("test_table"),
         },
       ]),
     ).resolves.toEqual([]);

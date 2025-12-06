@@ -4,10 +4,11 @@ import type { DBAdapter } from "./adapters/BaseAdapter";
 import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
 import { ExpoAdapter } from "./adapters/ExpoAdapter";
 
+// TODO: add rollback status
 export const enum MigrationStatus {
   REGISTERED = 0,
   APPLIED = 1,
-  FAILED = 2,
+  FAILED = 3,
 }
 
 type MigrationRecord = {
@@ -96,6 +97,15 @@ CREATE TABLE IF NOT EXISTS migrations(
     }
   }
 
+  /**
+   * Apply and track list of migrations.
+   *
+   * Note: if a migration fails, all subsequent migrations will not be applied.
+   *
+   * @param migrations - A list of migrations
+   * @returns A list of successfully applied migrations
+   *
+   */
   async migrate(migrations: Migration[]) {
     const migrated: string[] = [];
 
@@ -111,8 +121,9 @@ CREATE TABLE IF NOT EXISTS migrations(
         migrated.push(migration.id);
       }
     } catch (e) {
-      // if (e instanceof InvalidMigrationError)
-      console.error("Invalid migration:", e);
+      // TODO: do something about this error handling
+      if (e instanceof InvalidMigrationError)
+        console.error("Invalid migration:", e);
       throw e;
       // if (e instanceof Error)
       // console.error("unexpected migration error:", e.message);

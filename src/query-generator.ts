@@ -35,5 +35,8 @@ ${fieldsQuery}
 
   public static updateTable(table: Table) {}
 
-  public static dropTable(table: Table) {}
+  // simple and effective >:)
+  public static dropTable(name: string) {
+    return `DROP TABLE ${name};`;
+  }
 }
