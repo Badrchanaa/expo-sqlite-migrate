@@ -29,8 +29,8 @@ describe("sqlite3 adapter tests", () => {
       migrator.migrate([
         {
           id: "test-table",
-          up: () => new Table("test_table").create(),
-          down: () => "",
+          up: () => [new Table("test_table").create()],
+          down: () => [],
         },
       ]),
     ).resolves.toEqual([]);
@@ -44,11 +44,12 @@ describe("sqlite3 adapter tests", () => {
       migrator.migrate([
         {
           id: "test-table",
-          up: () =>
+          up: () => [
             new Table("test_table")
               .addField("test_column", "text", Constraint.NOT_NULL)
               .create(),
-          down: () => "",
+          ],
+          down: () => [],
         },
       ]),
     ).resolves.toEqual(["test-table"]);
@@ -63,12 +64,13 @@ describe("sqlite3 adapter tests", () => {
       migrator.migrate([
         {
           id: migrationID,
-          up: () =>
+          up: () => [
             new Table("test_table")
               .addField("test_column", "text", Constraint.PRIMARY_KEY)
               .addField("test_column2", "text", Constraint.PRIMARY_KEY)
               .create(),
-          down: () => DropTable("test_table"),
+          ],
+          down: () => [DropTable("test_table")],
         },
       ]),
     ).resolves.toEqual([]);

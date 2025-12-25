@@ -27,8 +27,24 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
     return get(source, ...params);
   }
 
+  async transaction(queries: string[]) {
+    await this.run("BEGIN IMMEDIATE TRANSACTION");
+    try {
+      for (let query of queries) {
+        await this.run(query);
+      }
+      await this.run("COMMIT");
+    } catch (err) {
+      console.error("[Transaction error]: ", err);
+      console.log("ROLLING BACK");
+      await this.run("ROLLBACK");
+      throw err;
+    }
+  }
+
   async getFirst<T>(source: string, ...params: any[]): Promise<T | null> {
     const get = promisify<T>(this.db.get, this.db);
     return get(source, ...params);
   }
 }
+// good code

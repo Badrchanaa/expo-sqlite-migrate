@@ -19,7 +19,7 @@ export interface Field {
 /**
  * Drop a database table
  *
- * Use with coution: this permanently removes the database table and its data.
+ * [Use with caution:] this permanently removes the database table and its data.
  * @param tableName - database table to drop
  */
 export function DropTable(tableName: string) {
@@ -90,6 +90,6 @@ export class Table {
 
 export interface Migration {
   id: string;
-  up: () => string;
-  down: () => string;
+  up: () => string[];
+  down: () => string[];
 }
