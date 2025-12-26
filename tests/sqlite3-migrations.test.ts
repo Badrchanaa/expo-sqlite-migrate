@@ -3,17 +3,18 @@ import { describe, expect, it } from "vitest";
 import { MigrationStatus, Migrator } from "../src/migrator";
 import { promisify } from "../src/utils/promisify";
 import { Table } from "../src";
-import { Constraint } from "../src/migrations";
+import { Constraint, DropTable } from "../src/migrations";
 
-describe("sqlite3 adapter tests", () => {
-  const db = new Database(":memory:");
-  const migrator = new Migrator(db, "sqlite3");
+describe("sqlite3 adapter tests", async () => {
+  const db = new Database("test.sqlite");
+  const migrator = await Migrator.create(db, "sqlite3");
   const dbGet = promisify<any>(db.get, db);
   const dbAll = promisify<any>(db.all, db);
   it("creates migrations table", async () => {
     const res = await dbGet(
       "SELECT * FROM sqlite_master WHERE type='table' AND name='migrations'",
     );
+    console.log("result", res);
     expect(res).toHaveProperty("type", "table");
     expect(res).toHaveProperty("name", "migrations");
   });
@@ -28,27 +29,28 @@ describe("sqlite3 adapter tests", () => {
     await expect(
       migrator.migrate([
         {
-          id: "test-table",
-          up: () => new Table("test_table").create(),
-          down: () => "",
+          id: "test-table-failure",
+          up: () => [new Table("test_table-failure").create()],
+          down: () => [],
         },
       ]),
     ).resolves.toEqual([]);
     const res = await dbGet(
-      `SELECT * FROM migrations WHERE id='test-table' AND status=${MigrationStatus.FAILED}`,
+      `SELECT * FROM migrations WHERE id='test-table-failure' AND status=${MigrationStatus.FAILED}`,
     );
-    expect(res).toHaveProperty("id", "test-table");
+    expect(res).toHaveProperty("id", "test-table-failure");
   });
   it("migrates a previously invalid migration", async () => {
     await expect(
       migrator.migrate([
         {
           id: "test-table",
-          up: () =>
+          up: () => [
             new Table("test_table")
               .addField("test_column", "text", Constraint.NOT_NULL)
               .create(),
-          down: () => "",
+          ],
+          down: () => [],
         },
       ]),
     ).resolves.toEqual(["test-table"]);
@@ -57,18 +59,19 @@ describe("sqlite3 adapter tests", () => {
     );
     expect(res).toHaveProperty("id", "test-table");
   });
-  it("table with many primary keys", async () => {
+  it("should not create table with more than one primary key", async () => {
     const migrationID = "TEST-PRIMARY-KEY";
     await expect(
       migrator.migrate([
         {
           id: migrationID,
-          up: () =>
+          up: () => [
             new Table("test_table")
               .addField("test_column", "text", Constraint.PRIMARY_KEY)
               .addField("test_column2", "text", Constraint.PRIMARY_KEY)
               .create(),
-          down: () => "",
+          ],
+          down: () => [DropTable("test_table")],
         },
       ]),
     ).resolves.toEqual([]);

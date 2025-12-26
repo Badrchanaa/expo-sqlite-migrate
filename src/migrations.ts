@@ -16,6 +16,16 @@ export interface Field {
   constraints?: Constraint;
 }
 
+/**
+ * Drop a database table
+ *
+ * [Use with caution:] this permanently removes the database table and its data.
+ * @param tableName - database table to drop
+ */
+export function DropTable(tableName: string) {
+  return QueryGenerator.dropTable(tableName);
+}
+
 export class Table {
   private fieldNames: Set<string>;
   private _fields: Field[];
@@ -35,7 +45,7 @@ export class Table {
           "Invalid table name: inner content contains quote character",
         );
       }
-      return; // valid fully quoted name
+      return; // valid quoted name
     }
 
     // unquoted names: must start with letter or underscore, followed by letters/digits/underscores
@@ -76,14 +86,10 @@ export class Table {
   update(): string {
     return "";
   }
-
-  drop(): string {
-    return "";
-  }
 }
 
 export interface Migration {
   id: string;
-  up: () => string;
-  down: () => string;
+  up: () => string[];
+  down: () => string[];
 }

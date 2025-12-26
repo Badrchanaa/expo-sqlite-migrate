@@ -4,38 +4,68 @@ import type { DBAdapter } from "./adapters/BaseAdapter";
 import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
 import { ExpoAdapter } from "./adapters/ExpoAdapter";
 
+// TODO: add rollback status
 export const enum MigrationStatus {
   REGISTERED = 0,
   APPLIED = 1,
-  FAILED = 2,
+  ROLLBACK = 2,
+  FAILED = 3,
 }
 
 type MigrationRecord = {
   id: string;
   status: MigrationStatus;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type DBMigrationRecord = Omit<MigrationRecord, "created_at" | "updated_at"> & {
+  created_at: number;
+  updated_at: number;
 };
 
 type DBTypeLiteral = "expo-sqlite" | "sqlite3";
 
 export class Migrator {
   private _db: DBAdapter;
-  constructor(db: any, type: DBTypeLiteral) {
+  private appliedMigrations: Map<string, Migration> = new Map();
+  private constructor(db: any, type: DBTypeLiteral) {
     if (type == "sqlite3") this._db = new Sqlite3Adapter(db);
     else if (type == "expo-sqlite") this._db = new ExpoAdapter(db);
     else throw new Error("invalid database type literal");
-
-    this.initMigrationTable();
   }
 
-  // creates the migrations table if it does not exist
+  static async create(db: any, type: DBTypeLiteral) {
+    const migrator = new Migrator(db, type);
+    await migrator.initMigrationTable();
+    return migrator;
+  }
+
   async initMigrationTable() {
-    await this._db.run(`
-CREATE TABLE IF NOT EXISTS migrations(
-	id TEXT NOT NULL UNIQUE,
-	status INTEGER DEFAULT 0,
-	PRIMARY KEY(id)
-) WITHOUT ROWID;
-`);
+    await this._db.transaction([
+      `
+  CREATE TABLE IF NOT EXISTS migrations(
+    id TEXT NOT NULL UNIQUE,
+    status INTEGER DEFAULT ${MigrationStatus.REGISTERED},
+    created_at INTEGER DEFAULT (strftime('%f','now') * 1000),
+    updated_at INTEGER DEFAULT (strftime('%f','now') * 1000),
+    PRIMARY KEY(id)
+  ) WITHOUT ROWID;
+  `,
+      `
+  CREATE TRIGGER IF NOT EXISTS migrations_updated_at
+  AFTER UPDATE ON migrations
+  FOR EACH ROW
+  BEGIN
+      UPDATE migrations
+      SET updated_at = CAST(strftime('%f','now') * 1000 AS INTEGER)
+      WHERE id = OLD.id;
+  END;
+  `,
+      `
+  CREATE INDEX IF NOT EXISTS applied_index ON migrations(status) WHERE status=${MigrationStatus.APPLIED};
+  `,
+    ]);
   }
 
   async getMigrationRecord(migrationId: string) {
@@ -71,8 +101,8 @@ CREATE TABLE IF NOT EXISTS migrations(
     }
     console.log("end:");
     try {
-      const query = migration.up();
-      await this._db.run(query);
+      const queries = migration.up();
+      await this._db.transaction(queries);
       await this._db.run(
         `UPDATE migrations SET status = ${MigrationStatus.APPLIED} WHERE id = "${migration.id}"`,
       );
@@ -96,6 +126,15 @@ CREATE TABLE IF NOT EXISTS migrations(
     }
   }
 
+  /**
+   * Apply and track list of migrations.
+   *
+   * Note: if a migration fails, all subsequent migrations will not be applied.
+   *
+   * @param migrations - A list of migrations
+   * @returns A list of successfully applied migrations
+   *
+   */
   async migrate(migrations: Migration[]) {
     const migrated: string[] = [];
 
@@ -108,16 +147,42 @@ CREATE TABLE IF NOT EXISTS migrations(
           break;
         }
         console.log("migration successful");
+        this.appliedMigrations.set(migration.id, migration);
         migrated.push(migration.id);
       }
     } catch (e) {
-      // if (e instanceof InvalidMigrationError)
-      console.error("Invalid migration:", e);
+      // TODO: do something about this error handling
+      if (e instanceof InvalidMigrationError)
+        console.error("Invalid migration:", e);
       throw e;
       // if (e instanceof Error)
       // console.error("unexpected migration error:", e.message);
     }
 
     return migrated;
+  }
+
+  async rollback() {
+    const DBRecord = await this._db.getFirst<DBMigrationRecord>(
+      `SELECT * FROM migrations WHERE status=${MigrationStatus.APPLIED} ORDER BY updated_at DESC LIMIT 1`,
+    );
+    if (!DBRecord) {
+      console.log("no current applied migration");
+      return null;
+    }
+    const appliedMigration: MigrationRecord = {
+      ...DBRecord,
+      created_at: new Date(DBRecord.created_at),
+      updated_at: new Date(DBRecord.updated_at),
+    };
+    const migration = this.appliedMigrations.get(appliedMigration.id);
+    if (!migration) {
+      throw new Error(
+        `Applied migration ${appliedMigration.id} has no code definition`,
+      );
+    }
+    const downQueries = migration.down();
+    await this._db.transaction(downQueries);
+    return migration.id;
   }
 }
