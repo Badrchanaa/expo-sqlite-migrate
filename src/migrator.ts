@@ -29,12 +29,16 @@ type DBTypeLiteral = "expo-sqlite" | "sqlite3";
 export class Migrator {
   private _db: DBAdapter;
   private appliedMigrations: Map<string, Migration> = new Map();
-  constructor(db: any, type: DBTypeLiteral) {
+  private constructor(db: any, type: DBTypeLiteral) {
     if (type == "sqlite3") this._db = new Sqlite3Adapter(db);
     else if (type == "expo-sqlite") this._db = new ExpoAdapter(db);
     else throw new Error("invalid database type literal");
+  }
 
-    this.initMigrationTable();
+  static async create(db: any, type: DBTypeLiteral) {
+    const migrator = new Migrator(db, type);
+    await migrator.initMigrationTable();
+    return migrator;
   }
 
   async initMigrationTable() {
@@ -49,7 +53,7 @@ export class Migrator {
   ) WITHOUT ROWID;
   `,
       `
-  CREATE TRIGGER migrations_updated_at
+  CREATE TRIGGER IF NOT EXISTS migrations_updated_at
   AFTER UPDATE ON migrations
   FOR EACH ROW
   BEGIN
@@ -59,7 +63,7 @@ export class Migrator {
   END;
   `,
       `
-  CREATE INDEX applied_index ON migrations(status) WHERE status=${MigrationStatus.APPLIED};
+  CREATE INDEX IF NOT EXISTS applied_index ON migrations(status) WHERE status=${MigrationStatus.APPLIED};
   `,
     ]);
   }
