@@ -17,4 +17,11 @@ export class ExpoAdapter extends BaseAdapter<SQLiteDatabase> {
   async getFirst<T>(source: string, ...params: any[]): Promise<T | null> {
     return this.db.getFirstAsync(source, ...params);
   }
+  async transaction(queries: string[]): Promise<void> {
+    return this.db.withExclusiveTransactionAsync(async (tx) => {
+      for (let query of queries) {
+        await tx.execAsync(query);
+      }
+    });
+  }
 }
