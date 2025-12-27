@@ -2,6 +2,12 @@ import type { Database } from "sqlite3";
 import { BaseAdapter } from "./BaseAdapter";
 import { promisify } from "../utils/promisify";
 
+enum TransactionType {
+  DEFERRED = "DEFERRED",
+  IMMEDIATE = "IMMEDIATE",
+  EXCLUSIVE = "EXCLUSIVE",
+}
+
 export class Sqlite3Adapter extends BaseAdapter<Database> {
   constructor(db: Database) {
     super(db);
@@ -27,8 +33,11 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
     return get(source, ...params);
   }
 
-  async transaction(queries: string[]) {
-    await this.run("BEGIN IMMEDIATE TRANSACTION");
+  async transaction(
+    queries: string[],
+    transactionType: TransactionType = TransactionType.IMMEDIATE,
+  ) {
+    await this.run(`BEGIN ${transactionType} TRANSACTION`);
     try {
       for (let query of queries) {
         await this.run(query);
@@ -37,7 +46,9 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
     } catch (err) {
       console.error("[Transaction error]: ", err);
       console.log("ROLLING BACK");
-      await this.run("ROLLBACK");
+      await this.run("ROLLBACK").catch((e) =>
+        console.error("ROLLBACK FAILED", e),
+      );
       throw err;
     }
   }

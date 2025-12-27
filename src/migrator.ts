@@ -151,7 +151,6 @@ export class Migrator {
         migrated.push(migration.id);
       }
     } catch (e) {
-      // TODO: do something about this error handling
       if (e instanceof InvalidMigrationError)
         console.error("Invalid migration:", e);
       throw e;
