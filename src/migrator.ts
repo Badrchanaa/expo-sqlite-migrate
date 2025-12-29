@@ -185,6 +185,7 @@ export class Migrator {
       ...downQueries,
       `UPDATE migrations SET status=${MigrationStatus.ROLLBACK} WHERE id='${migration.id}'`,
     ];
+    console.log(downQueries);
     await this._db.transaction(queries);
     return migration.id;
   }

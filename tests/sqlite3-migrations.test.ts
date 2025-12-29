@@ -50,7 +50,7 @@ describe("sqlite3 adapter tests", async () => {
               .addField("test_column", "text", Constraint.NOT_NULL)
               .create(),
           ],
-          down: () => [],
+          down: () => [DropTable("test_table")],
         },
       ]),
     ).resolves.toEqual(["test-table"]);
@@ -66,15 +66,20 @@ describe("sqlite3 adapter tests", async () => {
         {
           id: migrationID,
           up: () => [
-            new Table("test_table")
+            new Table("test_table2")
               .addField("test_column", "text", Constraint.PRIMARY_KEY)
               .addField("test_column2", "text", Constraint.PRIMARY_KEY)
               .create(),
           ],
-          down: () => [DropTable("test_table")],
+          down: () => [],
         },
       ]),
     ).resolves.toEqual([]);
+    await expect(
+      dbGet(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='test_table'",
+      ),
+    ).resolves.toHaveProperty("name", "test_table");
     const res = await dbGet(
       `SELECT * FROM migrations WHERE id='${migrationID}' and status=${MigrationStatus.FAILED};`,
     );
@@ -86,6 +91,11 @@ describe("sqlite3 adapter tests", async () => {
     await expect(
       dbGet(`SELECT * FROM migrations WHERE id='test-table';`),
     ).resolves.toHaveProperty("status", MigrationStatus.ROLLBACK);
+    await expect(
+      dbGet(
+        "SELECT * FROM sqlite_master WHERE type='table' AND name='test_table'",
+      ),
+    ).resolves.toBe(undefined);
     await expect(migrator.rollback()).resolves.toEqual(null);
   });
 });
