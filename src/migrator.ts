@@ -166,7 +166,7 @@ export class Migrator {
       `SELECT * FROM migrations WHERE status=${MigrationStatus.APPLIED} ORDER BY updated_at DESC LIMIT 1`,
     );
     if (!DBRecord) {
-      console.log("no current applied migration");
+      console.warn("no current applied migration");
       return null;
     }
     const appliedMigration: MigrationRecord = {
@@ -181,7 +181,11 @@ export class Migrator {
       );
     }
     const downQueries = migration.down();
-    await this._db.transaction(downQueries);
+    const queries = [
+      ...downQueries,
+      `UPDATE migrations SET status=${MigrationStatus.ROLLBACK} WHERE id='${migration.id}'`,
+    ];
+    await this._db.transaction(queries);
     return migration.id;
   }
 }

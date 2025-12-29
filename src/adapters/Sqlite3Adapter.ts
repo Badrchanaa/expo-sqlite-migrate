@@ -35,7 +35,7 @@ export class Sqlite3Adapter extends BaseAdapter<Database> {
 
   async transaction(
     queries: string[],
-    transactionType: TransactionType = TransactionType.IMMEDIATE,
+    transactionType = TransactionType.IMMEDIATE,
   ) {
     await this.run(`BEGIN ${transactionType} TRANSACTION`);
     try {

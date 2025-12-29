@@ -6,7 +6,7 @@ import { Table } from "../src";
 import { Constraint, DropTable } from "../src/migrations";
 
 describe("sqlite3 adapter tests", async () => {
-  const db = new Database("test.sqlite");
+  const db = new Database(":memory:");
   const migrator = await Migrator.create(db, "sqlite3");
   const dbGet = promisify<any>(db.get, db);
   const dbAll = promisify<any>(db.all, db);
@@ -79,5 +79,13 @@ describe("sqlite3 adapter tests", async () => {
       `SELECT * FROM migrations WHERE id='${migrationID}' and status=${MigrationStatus.FAILED};`,
     );
     expect(res).toHaveProperty("id", migrationID);
+  });
+
+  it("rolls back last applied migration", async () => {
+    await expect(migrator.rollback()).resolves.toEqual("test-table");
+    await expect(
+      dbGet(`SELECT * FROM migrations WHERE id='test-table';`),
+    ).resolves.toHaveProperty("status", MigrationStatus.ROLLBACK);
+    await expect(migrator.rollback()).resolves.toEqual(null);
   });
 });
