@@ -7,7 +7,7 @@ export class ExpoAdapter extends BaseAdapter<SQLiteDatabase> {
   }
 
   async run(query: string) {
-    this.db.execAsync(query);
+    return this.db.execAsync(query);
   }
 
   async getAll<T>(source: string, ...params: any[]): Promise<T[]> {
