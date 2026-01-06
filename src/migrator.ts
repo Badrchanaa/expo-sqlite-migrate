@@ -1,10 +1,10 @@
-import type { Migration } from "./migrations";
 import { InvalidMigrationError } from "./error";
-import type { DBAdapter } from "./adapters/BaseAdapter";
 import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
 import { ExpoAdapter } from "./adapters/ExpoAdapter";
+import type { Migration } from "./migrations";
+import type { DBAdapter } from "./adapters/BaseAdapter";
+import type { AdapterMap, DBTypeLiteral } from "./types";
 
-// TODO: add rollback status
 export const enum MigrationStatus {
   REGISTERED = 0,
   APPLIED = 1,
@@ -12,27 +12,31 @@ export const enum MigrationStatus {
   FAILED = 3,
 }
 
-type MigrationRecord = {
+export type MigrationRecord = {
   id: string;
   status: MigrationStatus;
   created_at: Date;
   updated_at: Date;
 };
 
-type DBMigrationRecord = Omit<MigrationRecord, "created_at" | "updated_at"> & {
+export type DBMigrationRecord = Omit<
+  MigrationRecord,
+  "created_at" | "updated_at"
+> & {
   created_at: number;
   updated_at: number;
 };
 
-type DBTypeLiteral = "expo-sqlite" | "sqlite3";
+const adapters: AdapterMap = {
+  "expo-sqlite": ExpoAdapter,
+  sqlite3: Sqlite3Adapter,
+};
 
 export class Migrator {
   private _db: DBAdapter;
   private appliedMigrations: Map<string, Migration> = new Map();
   private constructor(db: any, type: DBTypeLiteral) {
-    if (type == "sqlite3") this._db = new Sqlite3Adapter(db);
-    else if (type == "expo-sqlite") this._db = new ExpoAdapter(db);
-    else throw new Error("invalid database type literal");
+    this._db = new adapters[type](db);
   }
 
   static async create(db: any, type: DBTypeLiteral) {
@@ -87,7 +91,6 @@ export class Migrator {
     migration: Migration,
     migrationRecord: MigrationRecord | null,
   ): Promise<boolean> {
-    console.log("start:");
     if (!migrationRecord)
       await this._db.run(
         `INSERT INTO migrations (id, status) values ("${migration.id}", ${MigrationStatus.REGISTERED});`,
@@ -99,7 +102,6 @@ export class Migrator {
       if (migrationRecord.status === MigrationStatus.REGISTERED)
         console.warn("migration already registered " + migrationRecord.id);
     }
-    console.log("end:");
     try {
       const queries = migration.up();
       await this._db.transaction(queries);
@@ -161,6 +163,12 @@ export class Migrator {
     return migrated;
   }
 
+  /*
+   * Rolls back the latest applied migration.
+   *
+   * @returns The id of the rolled back migration or null if no applied migrations exist.
+   *
+   */
   async rollback() {
     const DBRecord = await this._db.getFirst<DBMigrationRecord>(
       `SELECT * FROM migrations WHERE status=${MigrationStatus.APPLIED} ORDER BY updated_at DESC LIMIT 1`,
@@ -185,8 +193,8 @@ export class Migrator {
       ...downQueries,
       `UPDATE migrations SET status=${MigrationStatus.ROLLBACK} WHERE id='${migration.id}'`,
     ];
-    console.log(downQueries);
     await this._db.transaction(queries);
+    this.appliedMigrations.delete(migration.id);
     return migration.id;
   }
 }

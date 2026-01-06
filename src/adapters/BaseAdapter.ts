@@ -5,7 +5,7 @@ export interface DBAdapter {
   transaction: (queries: string[]) => Promise<void>;
 }
 
-export abstract class BaseAdapter<DBType = any> implements DBAdapter {
+export abstract class BaseAdapter<DBType> implements DBAdapter {
   protected db: DBType;
   constructor(db: DBType) {
     this.db = db;

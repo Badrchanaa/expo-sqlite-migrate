@@ -1,5 +1,5 @@
 import { Constraint, Table } from "./migrations";
-import type { Field, FieldType } from "./migrations";
+import type { Field } from "./migrations";
 
 export class QueryGenerator {
   private static getFieldConstraints(field: Field) {

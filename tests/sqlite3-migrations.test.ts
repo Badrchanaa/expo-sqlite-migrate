@@ -29,16 +29,16 @@ describe("sqlite3 adapter tests", async () => {
     await expect(
       migrator.migrate([
         {
-          id: "test-table-failure",
-          up: () => [new Table("test_table-failure").create()],
+          id: "test-table",
+          up: () => [new Table("test_table").create()],
           down: () => [],
         },
       ]),
     ).resolves.toEqual([]);
     const res = await dbGet(
-      `SELECT * FROM migrations WHERE id='test-table-failure' AND status=${MigrationStatus.FAILED}`,
+      `SELECT * FROM migrations WHERE id='test-table' AND status=${MigrationStatus.FAILED}`,
     );
-    expect(res).toHaveProperty("id", "test-table-failure");
+    expect(res).toHaveProperty("id", "test-table");
   });
   it("migrates a previously invalid migration", async () => {
     await expect(
