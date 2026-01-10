@@ -135,6 +135,7 @@ export class Table {
       throw new Error("Foreign key already exists");
     }
     this._foreignKeys.set(key, fk);
+    return this;
   }
 
   get foreignKeys() {

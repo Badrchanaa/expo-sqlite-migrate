@@ -98,4 +98,36 @@ describe("sqlite3 adapter tests", async () => {
     ).resolves.toBe(undefined);
     await expect(migrator.rollback()).resolves.toEqual(null);
   });
+
+  it("creates table with foreign key", async () => {
+    await expect(
+      migrator.migrate([
+        {
+          id: "fk-test1",
+          up: () => {
+            const usersTable = new Table("user")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("name", "text");
+            const postsTable = new Table("posts")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("title", "text")
+              .addField("authorid", "int", Constraint.NOT_NULL)
+              .addForeignKey(
+                "users",
+                { authorid: "id" },
+                { onDelete: "CASCADE" },
+              );
+            return [usersTable.create(), postsTable.create()];
+          },
+          down: () => [],
+        },
+      ]),
+    ).resolves.toEqual(["fk-test1"]);
+    const res = await dbGet(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='posts'",
+    );
+    console.log("result", res);
+    expect(res).toHaveProperty("type", "table");
+    expect(res).toHaveProperty("name", "posts");
+  });
 });
