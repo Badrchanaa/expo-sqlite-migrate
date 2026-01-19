@@ -105,7 +105,7 @@ describe("sqlite3 adapter tests", async () => {
         {
           id: "fk-test1",
           up: () => {
-            const usersTable = new Table("user")
+            const usersTable = new Table("users")
               .addField("id", "int", Constraint.PRIMARY_KEY)
               .addField("name", "text");
             const postsTable = new Table("posts")
@@ -119,7 +119,7 @@ describe("sqlite3 adapter tests", async () => {
               );
             return [usersTable.create(), postsTable.create()];
           },
-          down: () => [],
+          down: () => [DropTable("users"), DropTable("posts")],
         },
       ]),
     ).resolves.toEqual(["fk-test1"]);
@@ -129,5 +129,101 @@ describe("sqlite3 adapter tests", async () => {
     console.log("result", res);
     expect(res).toHaveProperty("type", "table");
     expect(res).toHaveProperty("name", "posts");
+    await expect(migrator.rollback()).resolves.toEqual("fk-test1");
+  });
+  it("fails to create table with invalid foreign key: invalid referenced column", async () => {
+    await expect(
+      migrator.migrate([
+        {
+          id: "fk-test1",
+          up: () => {
+            const usersTable = new Table("users")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("name", "text");
+            const postsTable = new Table("posts")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("title", "text")
+              .addField("authorid", "int", Constraint.NOT_NULL)
+              .addForeignKey(
+                usersTable,
+                { authorid: "notexist" },
+                { onDelete: "CASCADE" },
+              );
+            return [usersTable.create(), postsTable.create()];
+          },
+          down: () => [DropTable("users"), DropTable("posts")],
+        },
+      ]),
+    ).resolves.toEqual([]);
+    const res = await dbGet(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='posts'",
+    );
+    expect(res).toBeUndefined;
+    await expect(migrator.rollback()).resolves.toEqual(null);
+  });
+  it("fails to create table with invalid foreign key: invalid column key", async () => {
+    await expect(
+      migrator.migrate([
+        {
+          id: "fk-test1",
+          up: () => {
+            const usersTable = new Table("users")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("name", "text");
+            const postsTable = new Table("posts")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("title", "text")
+              .addField("authorid", "int", Constraint.NOT_NULL)
+              .addForeignKey(
+                usersTable,
+                { notexist: "id" },
+                { onDelete: "CASCADE" },
+              );
+            return [usersTable.create(), postsTable.create()];
+          },
+          down: () => [DropTable("users"), DropTable("posts")],
+        },
+      ]),
+    ).resolves.toEqual([]);
+    const res = await dbGet(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='posts'",
+    );
+    expect(res).toBeUndefined;
+    await expect(migrator.rollback()).resolves.toEqual(null);
+  });
+  it("fails to create table with invalid foreign key: duplicate", async () => {
+    await expect(
+      migrator.migrate([
+        {
+          id: "fk-test1",
+          up: () => {
+            const usersTable = new Table("users")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("name", "text");
+            const postsTable = new Table("posts")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("title", "text")
+              .addField("authorid", "int", Constraint.NOT_NULL)
+              .addForeignKey(
+                usersTable,
+                { authorid: "id" },
+                { onDelete: "CASCADE" },
+              )
+              .addForeignKey(
+                usersTable,
+                { authorid: "id" },
+                { onDelete: "CASCADE" },
+              );
+            return [usersTable.create(), postsTable.create()];
+          },
+          down: () => [DropTable("users"), DropTable("posts")],
+        },
+      ]),
+    ).resolves.toEqual([]);
+    const res = await dbGet(
+      "SELECT * FROM sqlite_master WHERE type='table' AND name='posts'",
+    );
+    expect(res).toBeUndefined;
+    await expect(migrator.rollback()).resolves.toEqual(null);
   });
 });

@@ -109,6 +109,7 @@ export class Table {
 
     if (sortedEntries.length === 0)
       throw new Error("Foreign key must reference at least one column");
+    //console.log(refColumns, refTable instanceof Table && refTable.fieldNames);
     if (
       refTable instanceof Table &&
       refColumns.difference(new Set(refTable.fieldNames)).size !== 0
