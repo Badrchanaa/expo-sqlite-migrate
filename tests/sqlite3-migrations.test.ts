@@ -4,6 +4,7 @@ import { MigrationStatus, Migrator } from "../src/migrator";
 import { promisify } from "../src/utils/promisify";
 import { Table } from "../src";
 import { Constraint, DropTable } from "../src/migrations";
+import { Sqlite3Adapter } from "../src/adapters/Sqlite3Adapter";
 
 describe("sqlite3 adapter tests", async () => {
   const db = new Database(":memory:");
@@ -225,5 +226,30 @@ describe("sqlite3 adapter tests", async () => {
     );
     expect(res).toBeUndefined;
     await expect(migrator.rollback()).resolves.toEqual(null);
+  });
+
+  it("runs prepared statements", async () => {
+    const adapter = new Sqlite3Adapter(db);
+    await expect(
+      migrator.migrate([
+        {
+          id: "test-prepared1",
+          up: () => {
+            const testTable = new Table("testprepared")
+              .addField("id", "int", Constraint.PRIMARY_KEY)
+              .addField("name", "text");
+            return [testTable.create()];
+          },
+          down: () => [DropTable("users"), DropTable("posts")],
+        },
+      ]),
+    ).resolves.toEqual(["test-prepared1"]);
+    await adapter.runPrepared("INSERT INTO testprepared values (?, ?)", [
+      "1",
+      "preparedname",
+    ]);
+    const result = await dbGet("SELECT * from testprepared");
+    expect(result).toHaveProperty("id", 1);
+    expect(result).toHaveProperty("name", "preparedname");
   });
 });

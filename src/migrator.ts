@@ -46,13 +46,15 @@ export class Migrator {
   }
 
   async initMigrationTable() {
+    const unixEpochMs =
+      "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
     await this._db.transaction([
       `
   CREATE TABLE IF NOT EXISTS migrations(
     id TEXT NOT NULL UNIQUE,
     status INTEGER DEFAULT ${MigrationStatus.REGISTERED},
-    created_at INTEGER DEFAULT (strftime('%f','now') * 1000),
-    updated_at INTEGER DEFAULT (strftime('%f','now') * 1000),
+    created_at INTEGER DEFAULT (${unixEpochMs}),
+    updated_at INTEGER DEFAULT (${unixEpochMs}),
     PRIMARY KEY(id)
   ) WITHOUT ROWID;
   `,
@@ -62,7 +64,7 @@ export class Migrator {
   FOR EACH ROW
   BEGIN
       UPDATE migrations
-      SET updated_at = CAST(strftime('%f','now') * 1000 AS INTEGER)
+      SET updated_at = ${unixEpochMs}
       WHERE id = OLD.id;
   END;
   `,
@@ -92,8 +94,9 @@ export class Migrator {
     migrationRecord: MigrationRecord | null,
   ): Promise<boolean> {
     if (!migrationRecord)
-      await this._db.run(
-        `INSERT INTO migrations (id, status) values ("${migration.id}", ${MigrationStatus.REGISTERED});`,
+      await this._db.runPrepared(
+        "INSERT INTO migrations (id, status) values (?, ?);",
+        [migration.id, String(MigrationStatus.REGISTERED)],
       );
     else {
       if (migrationRecord.status === MigrationStatus.APPLIED) return true;
@@ -103,18 +106,22 @@ export class Migrator {
         console.warn("migration already registered " + migrationRecord.id);
     }
     try {
-      const queries = migration.up();
+      const queries = [
+        ...migration.up(),
+        {
+          sql: "UPDATE migrations SET status = ? WHERE id = ?",
+          params: [String(MigrationStatus.APPLIED), migration.id],
+        },
+      ];
       await this._db.transaction(queries);
-      await this._db.run(
-        `UPDATE migrations SET status = ${MigrationStatus.APPLIED} WHERE id = "${migration.id}"`,
-      );
       return true;
     } catch (e) {
       if (e instanceof Error)
         console.log("migration failed with error:", e.message);
-      await this._db.run(
-        `UPDATE migrations SET status = ${MigrationStatus.FAILED} WHERE id = "${migration.id}"`,
-      );
+      await this._db.runPrepared("UPDATE migrations SET status = ? WHERE id = ?", [
+        String(MigrationStatus.FAILED),
+        migration.id,
+      ]);
       return false;
     }
   }
@@ -191,7 +198,10 @@ export class Migrator {
     const downQueries = migration.down();
     const queries = [
       ...downQueries,
-      `UPDATE migrations SET status=${MigrationStatus.ROLLBACK} WHERE id='${migration.id}'`,
+      {
+        sql: "UPDATE migrations SET status = ? WHERE id = ?",
+        params: [String(MigrationStatus.ROLLBACK), migration.id],
+      },
     ];
     await this._db.transaction(queries);
     this.appliedMigrations.delete(migration.id);

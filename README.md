@@ -39,10 +39,10 @@ A simple lightweight React Native and Expo migrations library for local sqlite d
 - [x] PRIMARY KEY
 - [x] NOT NULL
 - [x] UNIQUE
+- [x] Foreign keys (REFERENCES)
 - [ ] DEFAULT value
 - [ ] CHECK constraint
 - [ ] AUTOINCREMENT
-- [ ] Foreign keys (REFERENCES)
 - [ ] ON DELETE / ON UPDATE actions (CASCADE, SET NULL, etc.)
 - [ ] Composite primary keys
 - [ ] Composite unique constraints
@@ -72,10 +72,10 @@ A simple lightweight React Native and Expo migrations library for local sqlite d
 - [x] Migration table creation tests
 - [x] Migration failure handling tests
 - [x] Primary key validation tests
+- [x] Foreign key tests
 - [ ] Rollback tests - **missing persistent rollback queries**
 - [ ] expo-sqlite adapter tests
 - [ ] react-native-sqlite-storage adapter tests
-- [ ] Foreign key tests
 - [ ] Integration tests with real Expo app
 
 ## Developer Experience
