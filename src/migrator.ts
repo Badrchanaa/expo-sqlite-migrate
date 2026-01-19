@@ -46,8 +46,7 @@ export class Migrator {
   }
 
   async initMigrationTable() {
-    const unixEpochMs =
-      "CAST((julianday('now') - 2440587.5) * 86400000 AS INTEGER)";
+    const unixEpochMs = "(julianday('now') - 2440587.5) * 86400000";
     await this._db.transaction([
       `
   CREATE TABLE IF NOT EXISTS migrations(
