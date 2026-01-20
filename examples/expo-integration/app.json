@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Expo SQLite Migrate Integration",
+    "slug": "expo-sqlite-migrate-integration",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
+    "jsEngine": "hermes"
+  }
+}
