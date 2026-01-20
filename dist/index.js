@@ -19,8 +19,9 @@ var QueryGenerator = class {
 		const fields = Array.from(table.fields);
 		if (fields.length === 0) throw new Error("can not create a table with no fields");
 		const fieldsSQL = fields.map((field) => this.generateFieldSQL(field));
-		if (table.foreignKeys) {
-			const fkSQL = [...table.foreignKeys].map((fk) => fk.SQL());
+		const foreignKeys = [...table.foreignKeys];
+		if (foreignKeys.length > 0) {
+			const fkSQL = foreignKeys.map((fk) => fk.SQL());
 			fieldsSQL.push(...fkSQL);
 		}
 		return `CREATE TABLE IF NOT EXISTS ${table.name}(${fieldsSQL.join(",\n")});`;

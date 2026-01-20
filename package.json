@@ -2,7 +2,18 @@
   "name": "expo-sqlite-migrate",
   "version": "0.0.1",
   "description": "lightweight React Native and Expo migrations library",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "react-native": "dist/index.js",
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -28,13 +39,26 @@
   },
   "homepage": "https://github.com/Badrchanaa/expo-sqlite-migrate#readme",
   "devDependencies": {
-    "expo-sqlite": "^16.0.9",
+    "@vitest/coverage-v8": "^4.0.17",
+    "expo-sqlite": "^16.0.10",
     "sqlite3": "^5.1.7",
-    "tsdown": "^0.16.6",
-    "tsx": "^4.20.6",
-    "vitest": "^4.0.14"
+    "tsdown": "^0.19.0",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.17"
   },
   "peerDependencies": {
-    "expo-sqlite": "^16.0.9"
+    "expo-sqlite": "^16.0.10",
+    "sqlite3": "^5.1.7"
+  },
+  "peerDependenciesMeta": {
+    "expo-sqlite": {
+      "optional": true
+    },
+    "sqlite3": {
+      "optional": true
+    }
+  },
+  "overrides": {
+    "tar": "7.5.3"
   }
 }
