@@ -1,10 +1,10 @@
-import type { Migration } from "./migrations";
 import { InvalidMigrationError } from "./error";
-import type { DBAdapter } from "./adapters/BaseAdapter";
 import { Sqlite3Adapter } from "./adapters/Sqlite3Adapter";
 import { ExpoAdapter } from "./adapters/ExpoAdapter";
+import type { Migration } from "./migrations";
+import type { DBAdapter } from "./adapters/BaseAdapter";
+import type { AdapterMap, DBTypeLiteral } from "./types";
 
-// TODO: add rollback status
 export const enum MigrationStatus {
   REGISTERED = 0,
   APPLIED = 1,
@@ -12,27 +12,31 @@ export const enum MigrationStatus {
   FAILED = 3,
 }
 
-type MigrationRecord = {
+export type MigrationRecord = {
   id: string;
   status: MigrationStatus;
   created_at: Date;
   updated_at: Date;
 };
 
-type DBMigrationRecord = Omit<MigrationRecord, "created_at" | "updated_at"> & {
+export type DBMigrationRecord = Omit<
+  MigrationRecord,
+  "created_at" | "updated_at"
+> & {
   created_at: number;
   updated_at: number;
 };
 
-type DBTypeLiteral = "expo-sqlite" | "sqlite3";
+const adapters: AdapterMap = {
+  "expo-sqlite": ExpoAdapter,
+  sqlite3: Sqlite3Adapter,
+};
 
 export class Migrator {
   private _db: DBAdapter;
   private appliedMigrations: Map<string, Migration> = new Map();
   private constructor(db: any, type: DBTypeLiteral) {
-    if (type == "sqlite3") this._db = new Sqlite3Adapter(db);
-    else if (type == "expo-sqlite") this._db = new ExpoAdapter(db);
-    else throw new Error("invalid database type literal");
+    this._db = new adapters[type](db);
   }
 
   static async create(db: any, type: DBTypeLiteral) {
@@ -42,13 +46,14 @@ export class Migrator {
   }
 
   async initMigrationTable() {
+    const unixEpochMs = "(julianday('now') - 2440587.5) * 86400000";
     await this._db.transaction([
       `
   CREATE TABLE IF NOT EXISTS migrations(
     id TEXT NOT NULL UNIQUE,
     status INTEGER DEFAULT ${MigrationStatus.REGISTERED},
-    created_at INTEGER DEFAULT (strftime('%f','now') * 1000),
-    updated_at INTEGER DEFAULT (strftime('%f','now') * 1000),
+    created_at INTEGER DEFAULT (${unixEpochMs}),
+    updated_at INTEGER DEFAULT (${unixEpochMs}),
     PRIMARY KEY(id)
   ) WITHOUT ROWID;
   `,
@@ -58,7 +63,7 @@ export class Migrator {
   FOR EACH ROW
   BEGIN
       UPDATE migrations
-      SET updated_at = CAST(strftime('%f','now') * 1000 AS INTEGER)
+      SET updated_at = ${unixEpochMs}
       WHERE id = OLD.id;
   END;
   `,
@@ -87,10 +92,10 @@ export class Migrator {
     migration: Migration,
     migrationRecord: MigrationRecord | null,
   ): Promise<boolean> {
-    console.log("start:");
     if (!migrationRecord)
-      await this._db.run(
-        `INSERT INTO migrations (id, status) values ("${migration.id}", ${MigrationStatus.REGISTERED});`,
+      await this._db.runPrepared(
+        "INSERT INTO migrations (id, status) values (?, ?);",
+        [migration.id, String(MigrationStatus.REGISTERED)],
       );
     else {
       if (migrationRecord.status === MigrationStatus.APPLIED) return true;
@@ -99,20 +104,23 @@ export class Migrator {
       if (migrationRecord.status === MigrationStatus.REGISTERED)
         console.warn("migration already registered " + migrationRecord.id);
     }
-    console.log("end:");
     try {
-      const queries = migration.up();
+      const queries = [
+        ...migration.up(),
+        {
+          sql: "UPDATE migrations SET status = ? WHERE id = ?",
+          params: [String(MigrationStatus.APPLIED), migration.id],
+        },
+      ];
       await this._db.transaction(queries);
-      await this._db.run(
-        `UPDATE migrations SET status = ${MigrationStatus.APPLIED} WHERE id = "${migration.id}"`,
-      );
       return true;
     } catch (e) {
       if (e instanceof Error)
         console.log("migration failed with error:", e.message);
-      await this._db.run(
-        `UPDATE migrations SET status = ${MigrationStatus.FAILED} WHERE id = "${migration.id}"`,
-      );
+      await this._db.runPrepared("UPDATE migrations SET status = ? WHERE id = ?", [
+        String(MigrationStatus.FAILED),
+        migration.id,
+      ]);
       return false;
     }
   }
@@ -151,7 +159,6 @@ export class Migrator {
         migrated.push(migration.id);
       }
     } catch (e) {
-      // TODO: do something about this error handling
       if (e instanceof InvalidMigrationError)
         console.error("Invalid migration:", e);
       throw e;
@@ -162,12 +169,18 @@ export class Migrator {
     return migrated;
   }
 
+  /*
+   * Rolls back the latest applied migration.
+   *
+   * @returns The id of the rolled back migration or null if no applied migrations exist.
+   *
+   */
   async rollback() {
     const DBRecord = await this._db.getFirst<DBMigrationRecord>(
       `SELECT * FROM migrations WHERE status=${MigrationStatus.APPLIED} ORDER BY updated_at DESC LIMIT 1`,
     );
     if (!DBRecord) {
-      console.log("no current applied migration");
+      console.warn("no current applied migration");
       return null;
     }
     const appliedMigration: MigrationRecord = {
@@ -182,7 +195,15 @@ export class Migrator {
       );
     }
     const downQueries = migration.down();
-    await this._db.transaction(downQueries);
+    const queries = [
+      ...downQueries,
+      {
+        sql: "UPDATE migrations SET status = ? WHERE id = ?",
+        params: [String(MigrationStatus.ROLLBACK), migration.id],
+      },
+    ];
+    await this._db.transaction(queries);
+    this.appliedMigrations.delete(migration.id);
     return migration.id;
   }
 }
